@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Versión Streamlit de la App de Gestión SELAH
+Versión Streamlit de la App de Gestión SELAH con pestaña de Catálogo
 Autor: Arie Brito + Gemini (adaptado a Streamlit)
 """
 
 import streamlit as st
 import mysql.connector
 from mysql.connector import Error
+import pandas as pd
 
 # =====================================
 # Conexión a base de datos
@@ -21,7 +22,6 @@ def conectar_db():
             database=st.secrets["DB_NAME"],
             connect_timeout=10
         )
-
         if conexion.is_connected():
             st.session_state["db_ok"] = True
             return conexion
@@ -29,7 +29,6 @@ def conectar_db():
             st.session_state["db_ok"] = False
             st.error("❌ No se pudo establecer conexión con la base de datos.")
             return None
-
     except Error as e:
         st.session_state["db_ok"] = False
         st.error(f"⚠️ Error de conexión con la base de datos: {e}")
@@ -89,168 +88,220 @@ def obtener_proveedores():
         cursor.close()
         conexion.close()
 
+def obtener_catalogo_materiales():
+    """Devuelve un DataFrame con todos los materiales registrados."""
+    conexion = conectar_db()
+    if conexion is None:
+        return pd.DataFrame()
+    try:
+        query = """
+        SELECT 
+            M.ID_MATERIAL,
+            M.TIPO,
+            M.PIEDRA,
+            M.FORMA,
+            M.COLOR,
+            M.DESCRIPCION,
+            M.TEXTURA,
+            M.LARGO,
+            M.ANCHO,
+            M.COSTO_TIRA,
+            M.CANTIDAD,
+            M.COSTO_CUENTA,
+            P.NOMBRE_PROVEEDOR
+        FROM MATERIALES M
+        LEFT JOIN PROVEEDORES P ON M.ID_PROVEEDOR = P.ID_PROVEEDOR
+        ORDER BY M.ID_MATERIAL
+        """
+        df = pd.read_sql(query, conexion)
+        return df
+    except Error as e:
+        st.error(f"Error al obtener catálogo: {e}")
+        return pd.DataFrame()
+    finally:
+        conexion.close()
+
+# =====================================
+# INTERFAZ PRINCIPAL CON TABS
+# =====================================
+st.title("📿 Sistema de Gestión SELAH")
+
+tab1, tab2, tab3 = st.tabs(["🧾 Registro de Materiales", "💰 Calculadora de Pulseras", "📚 Catálogo de Materiales"])
+
 # =========================
-# Registro de Materiales
+# TAB 1: Registro de Materiales
 # =========================
-st.title("📦 Registro de Materiales")
+with tab1:
+    st.subheader("🧾 Registro de Nuevos Materiales")
+    with st.form("form_registro"):
+        col1, col2 = st.columns(2)
+        with col1:
+            id_material = st.text_input("ID Producto")
+            tipo = st.selectbox("Tipo", [" "] + ["Corazon","Cristal","Goldstone","Inicial","Perla","Piedra","Separador","Zirconia"], index=0)
+            piedra = st.selectbox("Piedra", [" "] + ["Agata","Aguamarina","Amazonita","Angelita","Apatita","Aventurina","Calcita","Coral","Cristal","Corazón Nacar","Goldfilled","Granate","Hematita","Jade","Jade Teñido","Lepidolita","Madera","Madre Perla","Mezzaluna","Minerales","Morganita","Nacar","Obsidiana","Ojo de Tigre","Onix","Opalo","Ovalo Dorado","Perla","Perla de Rio","Perla Mallorca","Piedras Duras","Piedras preciosas","Selenita","Sodalita","Turmalina","Turquesa","Venturina","Zirconia","Rubí Zafiro","Corindon","Piedra de Luna Azul","Coral","Otro"], index=0)
+            forma = st.selectbox("Forma", [" "] + ["Redonda","Disco","Gota","Rectangular","Cuadrada","Satélite","Rondel","Rombo","Swarovzky","Rondela","Cubo", "Tubo","Cruz","Flor","Ovalo","Nugget","Papa","Luneta","Irregular","Corazon","Esfera","Dona","Cilindro","Redondo","Otro"], index=0)
+            color = st.text_input("Color")
+            descripcion = st.text_input("Descripción")
+        with col2:
+            textura = st.selectbox("Textura", [" "] + ["Lisa","Facetada"], index=0)
+            largo = st.text_input("Largo")
+            ancho = st.text_input("Ancho")
+            costo_tira = st.text_input("Costo Tira")
+            cantidad = st.text_input("Cantidad")
 
-with st.form("form_registro"):
-    col1, col2 = st.columns(2)
+            proveedores = obtener_proveedores()
+            opciones_prov = [" "] + [p[1] for p in proveedores]
+            nombre_prov_sel = st.selectbox("Proveedor", opciones_prov, index=0)
+            id_proveedor = None
+            if nombre_prov_sel != " ":
+                dict_proveedores = {p[1]: p[0] for p in proveedores}
+                id_proveedor = dict_proveedores.get(nombre_prov_sel)
 
-    with col1:
-        id_material = st.text_input("ID Producto")
-        tipo = st.selectbox("Tipo", [" "] + ["Corazon","Cristal","Goldstone","Inicial","Perla","Piedra","Separador","Zirconia"], index=0)
-        piedra = st.selectbox("Piedra", [" "] + ["Agata","Aguamarina","Amazonita","Angelita","Apatita","Aventurina","Calcita","Coral","Cristal","Corazón Nacar","Goldfilled","Granate","Hematita","Jade","Jade Teñido","Lepidolita","Madera","Madre Perla","Mezzaluna","Minerales","Morganita","Nacar","Obsidiana","Ojo de Tigre","Onix","Opalo","Ovalo Dorado","Perla","Perla de Rio","Perla Mallorca","Piedras Duras","Piedras preciosas","Selenita","Sodalita","Turmalina","Turquesa","Venturina","Zirconia","Rubí Zafiro","Corindon","Piedra de Luna Azul","Coral","Otro"], index=0)
-        forma = st.selectbox("Forma", [" "] + ["Redonda","Disco","Gota","Rectangular","Cuadrada","Satélite","Rondel","Rombo","Swarovzky","Rondela","Cubo", "Tubo","Cruz","Flor","Ovalo","Nugget","Papa","Luneta","Irregular","Corazon","Esfera","Dona","Cilindro","Redondo","Otro"], index=0)
-        color = st.text_input("Color")
-        descripcion = st.text_input("Descripción")
+        submitted = st.form_submit_button("Registrar Producto")
+        if submitted:
+            if not id_material:
+                st.error("El ID no puede quedar vacío")
+            elif id_proveedor is None:
+                st.error("Debes seleccionar un proveedor válido antes de registrar el producto.")
+            else:
+                conexion = conectar_db()
+                if conexion:
+                    cursor = conexion.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM MATERIALES WHERE ID_MATERIAL=%s", (id_material,))
+                    if cursor.fetchone()[0] > 0:
+                        st.error("El ID ya existe")
+                    else:
+                        try:
+                            costo_tira_f = float(costo_tira)
+                            cantidad_i = int(cantidad)
+                            largo_f = float(largo) if largo else None
+                            ancho_f = float(ancho) if ancho else None
+                            costo_cuenta = costo_tira_f / cantidad_i if cantidad_i != 0 else 0
 
-    with col2:
-        textura = st.selectbox("Textura", [" "] + ["Lisa","Facetada"], index=0)
-        largo = st.text_input("Largo")
-        ancho = st.text_input("Ancho")
-        costo_tira = st.text_input("Costo Tira")
-        cantidad = st.text_input("Cantidad")
+                            sql = """
+                            INSERT INTO MATERIALES
+                            (ID_MATERIAL, TIPO, PIEDRA, FORMA, COLOR, DESCRIPCION, TEXTURA, LARGO, ANCHO, COSTO_TIRA, CANTIDAD, COSTO_CUENTA, ID_PROVEEDOR)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """
+                            datos = (id_material, tipo, piedra, forma, color, descripcion, textura,
+                                    largo_f, ancho_f, costo_tira_f, cantidad_i, costo_cuenta, id_proveedor)
+                            cursor.execute(sql, datos)
+                            conexion.commit()
+                            st.success(f"✅ Producto registrado correctamente: {id_material}")
+                        except ValueError:
+                            st.error("Verifica que los campos numéricos sean correctos")
+                        except Error as e:
+                            st.error(f"No se pudo registrar el producto: {e}")
+                        finally:
+                            cursor.close()
+                            conexion.close()
 
-        # === Selectbox dinámico de proveedores ===
-        proveedores = obtener_proveedores()
-        opciones_prov = [" "] + [p[1] for p in proveedores]
-        nombre_prov_sel = st.selectbox("Proveedor", opciones_prov, index=0)
+# =========================
+# TAB 2: Calculadora de Pulseras
+# =========================
+with tab2:
+    st.subheader("💰 Calculadora de Pulseras")
+    tipo_hilo = st.selectbox("Tipo de Hilo", [" "] + ["Nylon", "Negro"], index=0)
 
-        id_proveedor = None
-        if nombre_prov_sel != " ":
-            dict_proveedores = {p[1]: p[0] for p in proveedores}
-            id_proveedor = dict_proveedores.get(nombre_prov_sel)
+    ids_material = obtener_ids_material()
+    material_seleccionados = []
+    cantidades = []
 
-    # === Botón de registro de producto ===
-    submitted = st.form_submit_button("Registrar Producto")
-    if submitted:
-        if not id_material:
-            st.error("El ID no puede quedar vacío")
-        elif id_proveedor is None:
-            st.error("Debes seleccionar un proveedor válido antes de registrar el producto.")
+    st.markdown("### Selección de Materiales (Máx. 5)")
+    for i in range(5):
+        col1, col2 = st.columns(2)
+        with col1:
+            mat_id = st.selectbox(f"ID Material {i+1}", options=ids_material, key=f"id_{i}", index=0)
+        with col2:
+            cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=0, step=1, key=f"cant_{i}")
+        material_seleccionados.append(mat_id)
+        cantidades.append(cant)
+
+    if st.button("Calcular Precio"):
+        costo_total_cuentas = sum([
+            cantidades[i] * obtener_costo_cuenta(material_seleccionados[i])
+            for i in range(5)
+            if material_seleccionados[i] != " "
+        ])
+        costo_hilo = 2.4 if tipo_hilo == "Nylon" else 4.0 if tipo_hilo == "Negro" else 0.0
+        costo_mano = 40.0
+        costo_empaque = 10.0
+        costos_fijos = costo_hilo + costo_mano + costo_empaque
+        marketing = 0.15 * (costo_total_cuentas + costos_fijos)
+        precio_real = costo_total_cuentas + costos_fijos + marketing
+        precio_real += 0.30 * precio_real
+
+        if precio_real <= 160:
+            clasificacion = "C"
+            precio_clasificado = 160.0
+        elif precio_real <= 200:
+            clasificacion = "B"
+            precio_clasificado = 190.0
+        elif precio_real <= 250:
+            clasificacion = "A"
+            precio_clasificado = 250.0
+        else:
+            clasificacion = "A+"
+            precio_clasificado = round(precio_real, 2)
+
+        st.success(f"**Costo total:** ${costo_total_cuentas + costos_fijos:.2f}")
+        st.write(f"**Precio real:** ${precio_real:.2f}")
+        st.info(f"**Clasificación:** {clasificacion}, Precio Clasificado: ${precio_clasificado:.2f}")
+
+        st.session_state['costo_total'] = costo_total_cuentas + costos_fijos
+        st.session_state['precio_real'] = precio_real
+        st.session_state['clasificacion'] = clasificacion
+        st.session_state['precio_clasificado'] = precio_clasificado
+
+    st.markdown("### Registro de Pulsera Final")
+    id_producto = st.text_input("ID Producto Pulsera")
+    descripcion_pulsera = st.text_input("Descripción Pulsera")
+
+    if st.button("Registrar Pulsera"):
+        if not id_producto or not descripcion_pulsera:
+            st.error("Debes ingresar ID y descripción del producto")
+        elif 'costo_total' not in st.session_state:
+            st.error("Primero debes calcular el precio")
         else:
             conexion = conectar_db()
             if conexion:
                 cursor = conexion.cursor()
-                cursor.execute("SELECT COUNT(*) FROM MATERIAL WHERE ID_MATERIAL=%s", (id_material,))
-                if cursor.fetchone()[0] > 0:
-                    st.error("El ID ya existe")
-                else:
-                    try:
-                        costo_tira_f = float(costo_tira)
-                        cantidad_i = int(cantidad)
-                        largo_f = float(largo) if largo else None
-                        ancho_f = float(ancho) if ancho else None
-                        costo_cuenta = costo_tira_f / cantidad_i if cantidad_i != 0 else 0
-
-                        sql = """
-                        INSERT INTO MATERIALES
-                        (ID_MATERIAL, TIPO, PIEDRA, FORMA, COLOR, DESCRIPCION, TEXTURA, LARGO, ANCHO, COSTO_TIRA, CANTIDAD, COSTO_CUENTA, ID_PROVEEDOR)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """
-                        datos = (id_material, tipo, piedra, forma, color, descripcion, textura,
-                                 largo_f, ancho_f, costo_tira_f, cantidad_i, costo_cuenta, id_proveedor)
-                        cursor.execute(sql, datos)
-                        conexion.commit()
-                        st.success(f"✅ Producto registrado correctamente: {id_material}")
-                    except ValueError:
-                        st.error("Verifica que los campos numéricos sean correctos")
-                    except Error as e:
-                        st.error(f"No se pudo registrar el producto: {e}")
-                    finally:
-                        cursor.close()
-                        conexion.close()
+                try:
+                    sql = """
+                    INSERT INTO PULSERAS (ID_PRODUCTO, DESCRIPCION, COSTO, PRECIO, CLASIFICACION, PRECIO_CLASIFICADO)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """
+                    datos = (
+                        id_producto, 
+                        descripcion_pulsera, 
+                        st.session_state['costo_total'], 
+                        st.session_state['precio_real'], 
+                        st.session_state['clasificacion'], 
+                        st.session_state['precio_clasificado']
+                    )
+                    cursor.execute(sql, datos)
+                    conexion.commit()
+                    st.success(f"Pulsera '{descripcion_pulsera}' registrada correctamente")
+                except Error as e:
+                    st.error(f"No se pudo registrar la pulsera: {e}")
+                finally:
+                    cursor.close()
+                    conexion.close()
 
 # =========================
-# Calculadora de Pulseras
+# TAB 3: Catálogo de Materiales
 # =========================
-st.title("💰 Calculadora de Pulseras")
-
-tipo_hilo = st.selectbox("Tipo de Hilo", [" "] + ["Nylon", "Negro"], index=0)
-
-ids_material = obtener_ids_material()
-material_seleccionados = []
-cantidades = []
-
-st.markdown("### Selección de Materiales (Máx. 5)")
-for i in range(5):
-    col1, col2 = st.columns(2)
-    with col1:
-        mat_id = st.selectbox(f"ID Material {i+1}", options=ids_material, key=f"id_{i}", index=0)
-    with col2:
-        cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=0, step=1, key=f"cant_{i}")
-    material_seleccionados.append(mat_id)
-    cantidades.append(cant)
-
-if st.button("Calcular Precio"):
-    costo_total_cuentas = sum([
-        cantidades[i] * obtener_costo_cuenta(material_seleccionados[i])
-        for i in range(5)
-        if material_seleccionados[i] != " "
-    ])
-    costo_hilo = 2.4 if tipo_hilo == "Nylon" else 4.0 if tipo_hilo == "Negro" else 0.0
-    costo_mano = 40.0
-    costo_empaque = 10.0
-    costos_fijos = costo_hilo + costo_mano + costo_empaque
-    marketing = 0.15 * (costo_total_cuentas + costos_fijos)
-    precio_real = costo_total_cuentas + costos_fijos + marketing
-    precio_real = precio_real + 0.30 * precio_real
-
-    if precio_real <= 160:
-        clasificacion = "C"
-        precio_clasificado = 160.0
-    elif precio_real <= 200:
-        clasificacion = "B"
-        precio_clasificado = 190.0
-    elif precio_real <= 250:
-        clasificacion = "A"
-        precio_clasificado = 250.0
-    else:
-        clasificacion = "A+"
-        precio_clasificado = round(precio_real, 2)
-
-    st.write(f"**Costo total:** ${costo_total_cuentas + costos_fijos:.2f}")
-    st.write(f"**Precio real:** ${precio_real:.2f}")
-    st.success(f"**Clasificación:** {clasificacion}, Precio Clasificado: ${precio_clasificado:.2f}")
-
-    st.session_state['costo_total'] = costo_total_cuentas + costos_fijos
-    st.session_state['precio_real'] = precio_real
-    st.session_state['clasificacion'] = clasificacion
-    st.session_state['precio_clasificado'] = precio_clasificado
-
-st.markdown("### Registro de Pulsera Final")
-id_producto = st.text_input("ID Producto Pulsera")
-descripcion_pulsera = st.text_input("Descripción Pulsera")
-
-if st.button("Registrar Pulsera"):
-    if not id_producto or not descripcion_pulsera:
-        st.error("Debes ingresar ID y descripción del producto")
-    elif 'costo_total' not in st.session_state:
-        st.error("Primero debes calcular el precio")
-    else:
-        conexion = conectar_db()
-        if conexion:
-            cursor = conexion.cursor()
-            try:
-                sql = """
-                INSERT INTO PULSERAS (ID_PRODUCTO, DESCRIPCION, COSTO, PRECIO, CLASIFICACION, PRECIO_CLASIFICADO)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """
-                datos = (
-                    id_producto, 
-                    descripcion_pulsera, 
-                    st.session_state['costo_total'], 
-                    st.session_state['precio_real'], 
-                    st.session_state['clasificacion'], 
-                    st.session_state['precio_clasificado']
-                )
-                cursor.execute(sql, datos)
-                conexion.commit()
-                st.success(f"Pulsera '{descripcion_pulsera}' registrada correctamente")
-            except Error as e:
-                st.error(f"No se pudo registrar la pulsera: {e}")
-            finally:
-                cursor.close()
-                conexion.close()
-
+with tab3:
+    st.subheader("📚 Catálogo de Materiales")
+    if st.button("🔄 Cargar Catálogo"):
+        df = obtener_catalogo_materiales()
+        if df.empty:
+            st.warning("No hay materiales registrados o ocurrió un error.")
+        else:
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.download_button(
+                label="⬇️ Descargar catálogo en CSV",
+                data=df.to_csv(index=False).encode('utf-8'),
+                file_name="catalogo_materiales.csv",
+                mime="text/csv"
+            )
