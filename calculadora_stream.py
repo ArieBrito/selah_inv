@@ -44,7 +44,7 @@ def obtener_ids_material():
         return [" "]
     try:
         cursor = conexion.cursor()
-        cursor.execute("SELECT ID_MATERIAL FROM MATERIAL")
+        cursor.execute("SELECT ID_MATERIAL FROM MATERIALES")
         result = cursor.fetchall()
         return [" "] + [r[0] for r in result]
     except Error as e:
@@ -63,7 +63,7 @@ def obtener_costo_cuenta(id_material):
         return 0.0
     cursor = conexion.cursor()
     try:
-        cursor.execute("SELECT COSTO_CUENTA FROM MATERIAL WHERE ID_MATERIAL=%s", (id_material,))
+        cursor.execute("SELECT COSTO_CUENTA FROM MATERIALES WHERE ID_MATERIAL=%s", (id_material,))
         res = cursor.fetchone()
         return float(res[0]) if res and res[0] is not None else 0.0
     except Error:
@@ -133,7 +133,7 @@ with st.form("form_registro"):
             conexion = conectar_db()
             if conexion:
                 cursor = conexion.cursor()
-                cursor.execute("SELECT COUNT(*) FROM MATERIAL WHERE ID_MATERIAL=%s", (id_material,))
+                cursor.execute("SELECT COUNT(*) FROM MATERIALES WHERE ID_MATERIAL=%s", (id_material,))
                 if cursor.fetchone()[0] > 0:
                     st.error("El ID ya existe")
                 else:
@@ -145,7 +145,7 @@ with st.form("form_registro"):
                         costo_cuenta = costo_tira_f / cantidad_i if cantidad_i != 0 else 0
 
                         sql = """
-                        INSERT INTO MATERIAL
+                        INSERT INTO MATERIALES
                         (ID_MATERIAL, TIPO, PIEDRA, FORMA, COLOR, DESCRIPCION, TEXTURA, LARGO, ANCHO, COSTO_TIRA, CANTIDAD, COSTO_CUENTA, ID_PROVEEDOR)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """
@@ -253,4 +253,5 @@ if st.button("Registrar Pulsera"):
             finally:
                 cursor.close()
                 conexion.close()
+
 
