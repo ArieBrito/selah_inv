@@ -35,32 +35,42 @@ def conectar_db():
         st.error(f"⚠️ Error de conexión con la base de datos: {e}")
         return None
 
-# --- Obtener IDs de materiales ---
+# =====================================
+# Funciones auxiliares
+# =====================================
 def obtener_ids_material():
-    if "ids_material" not in st.session_state:
-        conexion = conectar_db()
-        if conexion:
-            cursor = conexion.cursor()
-            cursor.execute("SELECT ID_MATERIAL FROM MATERIALES")
-            ids = [r[0] for r in cursor.fetchall()]
+    conexion = conectar_db()
+    if conexion is None:
+        return [" "]
+    try:
+        cursor = conexion.cursor()
+        cursor.execute("SELECT ID_MATERIAL FROM MATERIAL")
+        result = cursor.fetchall()
+        return [" "] + [r[0] for r in result]
+    except Error as e:
+        st.error(f"Error al obtener IDs de material: {e}")
+        return [" "]
+    finally:
+        if conexion.is_connected():
             cursor.close()
             conexion.close()
-            st.session_state["ids_material"] = ids
-        else:
-            st.session_state["ids_material"] = []
-    return st.session_state["ids_material"]
 
-# --- Obtener costo por material ---
 def obtener_costo_cuenta(id_material):
+    if not id_material or id_material == " ":
+        return 0.0
     conexion = conectar_db()
-    if conexion:
-        cursor = conexion.cursor()
-        cursor.execute("SELECT COSTO_UNITARIO FROM MATERIALES WHERE ID_MATERIAL = %s", (id_material,))
-        costo = cursor.fetchone()
+    if conexion is None:
+        return 0.0
+    cursor = conexion.cursor()
+    try:
+        cursor.execute("SELECT COSTO_CUENTA FROM MATERIAL WHERE ID_MATERIAL=%s", (id_material,))
+        res = cursor.fetchone()
+        return float(res[0]) if res and res[0] is not None else 0.0
+    except Error:
+        return 0.0
+    finally:
         cursor.close()
         conexion.close()
-        return costo[0] if costo else 0
-    return 0
 
 def obtener_proveedores():
     """Obtiene los proveedores desde la BD y devuelve lista de tuplas (id, nombre)."""
@@ -123,7 +133,7 @@ with st.form("form_registro"):
             conexion = conectar_db()
             if conexion:
                 cursor = conexion.cursor()
-                cursor.execute("SELECT COUNT(*) FROM MATERIALES WHERE ID_MATERIAL=%s", (id_material,))
+                cursor.execute("SELECT COUNT(*) FROM MATERIAL WHERE ID_MATERIAL=%s", (id_material,))
                 if cursor.fetchone()[0] > 0:
                     st.error("El ID ya existe")
                 else:
@@ -135,7 +145,7 @@ with st.form("form_registro"):
                         costo_cuenta = costo_tira_f / cantidad_i if cantidad_i != 0 else 0
 
                         sql = """
-                        INSERT INTO MATERIALES
+                        INSERT INTO MATERIAL
                         (ID_MATERIAL, TIPO, PIEDRA, FORMA, COLOR, DESCRIPCION, TEXTURA, LARGO, ANCHO, COSTO_TIRA, CANTIDAD, COSTO_CUENTA, ID_PROVEEDOR)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """
@@ -159,68 +169,56 @@ st.title("💰 Calculadora de Pulseras")
 
 tipo_hilo = st.selectbox("Tipo de Hilo", [" "] + ["Nylon", "Negro"], index=0)
 
-# Cargar materiales una sola vez
 ids_material = obtener_ids_material()
-
-st.markdown("### Selección de Materiales (Máx. 5)")
 material_seleccionados = []
 cantidades = []
 
+st.markdown("### Selección de Materiales (Máx. 5)")
 for i in range(5):
     col1, col2 = st.columns(2)
     with col1:
-        mat_id = st.selectbox(f"ID Material {i+1}", options=[" "] + ids_material, key=f"id_{i}")
+        mat_id = st.selectbox(f"ID Material {i+1}", options=ids_material, key=f"id_{i}", index=0)
     with col2:
         cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=0, step=1, key=f"cant_{i}")
     material_seleccionados.append(mat_id)
     cantidades.append(cant)
 
-# --- Cálculo de precio ---
 if st.button("Calcular Precio"):
-    conexion = conectar_db()
-    if conexion:
-        cursor = conexion.cursor()
-        costo_total_cuentas = 0
-        for i in range(5):
-            if material_seleccionados[i] != " ":
-                cursor.execute("SELECT COSTO_UNITARIO FROM MATERIALES WHERE ID_MATERIAL = %s", (material_seleccionados[i],))
-                costo = cursor.fetchone()
-                if costo:
-                    costo_total_cuentas += cantidades[i] * costo[0]
-        cursor.close()
-        conexion.close()
+    costo_total_cuentas = sum([
+        cantidades[i] * obtener_costo_cuenta(material_seleccionados[i])
+        for i in range(5)
+        if material_seleccionados[i] != " "
+    ])
+    costo_hilo = 2.4 if tipo_hilo == "Nylon" else 4.0 if tipo_hilo == "Negro" else 0.0
+    costo_mano = 40.0
+    costo_empaque = 10.0
+    costos_fijos = costo_hilo + costo_mano + costo_empaque
+    marketing = 0.15 * (costo_total_cuentas + costos_fijos)
+    precio_real = costo_total_cuentas + costos_fijos + marketing
+    precio_real = precio_real + 0.30 * precio_real
 
-        costo_hilo = 2.4 if tipo_hilo == "Nylon" else 4.0 if tipo_hilo == "Negro" else 0.0
-        costo_mano = 40.0
-        costo_empaque = 10.0
-        costos_fijos = costo_hilo + costo_mano + costo_empaque
-        marketing = 0.15 * (costo_total_cuentas + costos_fijos)
-        precio_real = costo_total_cuentas + costos_fijos + marketing
-        precio_real += 0.30 * precio_real
+    if precio_real <= 160:
+        clasificacion = "C"
+        precio_clasificado = 160.0
+    elif precio_real <= 200:
+        clasificacion = "B"
+        precio_clasificado = 190.0
+    elif precio_real <= 250:
+        clasificacion = "A"
+        precio_clasificado = 250.0
+    else:
+        clasificacion = "A+"
+        precio_clasificado = round(precio_real, 2)
 
-        if precio_real <= 160:
-            clasificacion = "C"
-            precio_clasificado = 160.0
-        elif precio_real <= 200:
-            clasificacion = "B"
-            precio_clasificado = 190.0
-        elif precio_real <= 250:
-            clasificacion = "A"
-            precio_clasificado = 250.0
-        else:
-            clasificacion = "A+"
-            precio_clasificado = round(precio_real, 2)
+    st.write(f"**Costo total:** ${costo_total_cuentas + costos_fijos:.2f}")
+    st.write(f"**Precio real:** ${precio_real:.2f}")
+    st.success(f"**Clasificación:** {clasificacion}, Precio Clasificado: ${precio_clasificado:.2f}")
 
-        st.success(f"**Costo total:** ${costo_total_cuentas + costos_fijos:.2f}")
-        st.write(f"**Precio real:** ${precio_real:.2f}")
-        st.info(f"**Clasificación:** {clasificacion}, Precio Clasificado: ${precio_clasificado:.2f}")
+    st.session_state['costo_total'] = costo_total_cuentas + costos_fijos
+    st.session_state['precio_real'] = precio_real
+    st.session_state['clasificacion'] = clasificacion
+    st.session_state['precio_clasificado'] = precio_clasificado
 
-        st.session_state['costo_total'] = costo_total_cuentas + costos_fijos
-        st.session_state['precio_real'] = precio_real
-        st.session_state['clasificacion'] = clasificacion
-        st.session_state['precio_clasificado'] = precio_clasificado
-
-# --- Registro de pulsera ---
 st.markdown("### Registro de Pulsera Final")
 id_producto = st.text_input("ID Producto Pulsera")
 descripcion_pulsera = st.text_input("Descripción Pulsera")
@@ -255,6 +253,3 @@ if st.button("Registrar Pulsera"):
             finally:
                 cursor.close()
                 conexion.close()
-
-
-
