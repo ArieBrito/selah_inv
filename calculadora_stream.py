@@ -11,7 +11,6 @@ from mysql.connector import Error
 # =====================================
 # Conexión a base de datos
 # =====================================
-@st.cache_resource
 def conectar_db():
     try:
         conexion = mysql.connector.connect(
@@ -43,16 +42,18 @@ def obtener_ids_material():
     conexion = conectar_db()
     if conexion is None:
         return [" "]
-    cursor = conexion.cursor()
     try:
+        cursor = conexion.cursor()
         cursor.execute("SELECT ID_MATERIAL FROM MATERIAL")
         result = cursor.fetchall()
         return [" "] + [r[0] for r in result]
-    except Error:
+    except Error as e:
+        st.error(f"Error al obtener IDs de material: {e}")
         return [" "]
     finally:
-        cursor.close()
-        conexion.close()
+        if conexion.is_connected():
+            cursor.close()
+            conexion.close()
 
 def obtener_costo_cuenta(id_material):
     if not id_material or id_material == " ":
@@ -252,3 +253,4 @@ if st.button("Registrar Pulsera"):
             finally:
                 cursor.close()
                 conexion.close()
+
