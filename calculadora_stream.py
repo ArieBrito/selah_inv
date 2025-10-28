@@ -14,14 +14,25 @@ from mysql.connector import Error
 def conectar_db():
     try:
         conexion = mysql.connector.connect(
-            host='localhost',
-            user='root',
-            password='TU_PASSWORD',
-            database='SELAH_BASE'
+            host=st.secrets["DB_HOST"],
+            port=st.secrets["DB_PORT"],
+            user=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASSWORD"],
+            database=st.secrets["DB_NAME"],
+            connect_timeout=10
         )
-        return conexion
+
+        if conexion.is_connected():
+            st.session_state["db_ok"] = True
+            return conexion
+        else:
+            st.session_state["db_ok"] = False
+            st.error("❌ No se pudo establecer conexión con la base de datos.")
+            return None
+
     except Error as e:
-        st.error(f"Error al conectar con la base de datos: {e}")
+        st.session_state["db_ok"] = False
+        st.error(f"⚠️ Error de conexión con la base de datos: {e}")
         return None
 
 # --- Obtener IDs de materiales ---
@@ -244,5 +255,6 @@ if st.button("Registrar Pulsera"):
             finally:
                 cursor.close()
                 conexion.close()
+
 
 
