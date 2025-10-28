@@ -124,7 +124,7 @@ def obtener_catalogo_materiales():
 # =====================================
 # INTERFAZ PRINCIPAL CON TABS
 # =====================================
-st.title("📿 Sistema de Gestión SELAH")
+st.title("Selah: Sisema de Gestión")
 
 tab1, tab2, tab3 = st.tabs(["🧾 Registro de Materiales", "💰 Calculadora de Pulseras", "📚 Catálogo de Materiales"])
 
@@ -305,3 +305,4 @@ with tab3:
                 file_name="catalogo_materiales.csv",
                 mime="text/csv"
             )
+
