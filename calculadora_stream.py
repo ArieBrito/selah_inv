@@ -236,8 +236,8 @@ with tab2:
             precio_clasificado = 160.0
         elif precio_real <= 200:
             clasificacion = "B"
-            precio_clasificado = 190.0
-         elif precio_real > 190: 
+            precio_clasificado = 200.0
+        else:  # precio_real > 200
             clasificacion = "A"
             precio_clasificado = 250.0
 
@@ -302,5 +302,6 @@ with tab3:
                 file_name="catalogo_materiales.csv",
                 mime="text/csv"
             )
+
 
 
