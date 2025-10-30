@@ -237,12 +237,9 @@ with tab2:
         elif precio_real <= 200:
             clasificacion = "B"
             precio_clasificado = 190.0
-        elif precio_real <= 250:
+         elif precio_real > 190: 
             clasificacion = "A"
             precio_clasificado = 250.0
-        else:
-            clasificacion = "A+"
-            precio_clasificado = round(precio_real, 2)
 
         st.success(f"**Costo total:** ${costo_total_cuentas + costos_fijos:.2f}")
         st.write(f"**Precio real:** ${precio_real:.2f}")
@@ -305,4 +302,5 @@ with tab3:
                 file_name="catalogo_materiales.csv",
                 mime="text/csv"
             )
+
 
