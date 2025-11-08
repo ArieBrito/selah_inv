@@ -188,9 +188,12 @@ def obtener_catalogo_pulseras():
 # Función para limpiar los campos de la calculadora (CORREGIDA)
 # =====================================
 def limpiar_campos_calculadora():
+    # Valor por defecto de las selectboxes, que es la primera opción.
+    DEFAULT_SELECTBOX_VALUE = " "
+
     # 1. Resetear el selectbox de Tipo de Hilo
     if 'hilo_calc' in st.session_state:
-        st.session_state['hilo_calc'] = " " # El valor inicial es la primera opción, que es " "
+        st.session_state['hilo_calc'] = DEFAULT_SELECTBOX_VALUE
         
     # 2. Resetear los 5 pares de inputs de Material y Cantidad
     for i in range(5):
@@ -199,10 +202,9 @@ def limpiar_campos_calculadora():
         
         # Resetear el selectbox de material a la opción vacía (" ")
         if id_key in st.session_state:
-            # El valor inicial del selectbox (opciones_display[0]) es " "
-            st.session_state[id_key] = " "
+            st.session_state[id_key] = DEFAULT_SELECTBOX_VALUE
 
-        # Resetear el number_input a 0
+        # Resetear el number_input a 0 (CUMPLIENDO LA PETICIÓN DEL USUARIO)
         if cant_key in st.session_state:
             st.session_state[cant_key] = 0
 
@@ -262,6 +264,7 @@ with tab1:
             limpiar = st.form_submit_button("🧹 Limpiar Campos")
 
         if limpiar:
+            # Esta limpieza solo afecta a los campos de la pestaña de Registro de Materiales
             for key in list(st.session_state.keys()):
                 if key.startswith(("id_mat", "color_mat", "desc_mat", "largo_mat", "ancho_mat", "costotira_mat", "cantidad_mat")):
                     st.session_state[key] = ""
@@ -334,6 +337,7 @@ with tab2:
             # Obtener el ID_MATERIAL real a partir del mapa
             mat_id = material_mapa.get(mat_desc, " ")
         with col2:
+            # Los number_input se definen aquí con key='cant_i' y valor inicial 0
             cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=0, step=1, key=f"cant_{i}")
         
         # El ID a usar para la lógica de cálculo es mat_id
