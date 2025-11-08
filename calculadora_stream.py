@@ -190,18 +190,8 @@ def inicializar_calculadora_state():
         st.session_state.setdefault(f"cant_{i}", 0)
 
 
-# =====================================
-# Función para limpiar calculadora
-# =====================================
-def limpiar_campos_calculadora():
-    DEFAULT_SELECTBOX_VALUE = " "
-    st.session_state['hilo_calc'] = DEFAULT_SELECTBOX_VALUE
-    for i in range(5):
-        st.session_state[f"id_{i}"] = DEFAULT_SELECTBOX_VALUE
-        st.session_state[f"cant_{i}"] = 0
-    for key in ['costo_total', 'precio_real', 'clasificacion', 'precio_clasificado']:
-        st.session_state.pop(key, None)
-    st.rerun() # ✅ reemplazo correcto de experimental_rerun
+# NOTA: La función 'limpiar_campos_calculadora' ha sido eliminada
+# ya que no se utiliza tras la eliminación del botón "Limpiar Campos".
 
 
 # =====================================
@@ -245,19 +235,8 @@ with tab1:
                 dict_proveedores = {p[1]: p[0] for p in proveedores}
                 id_proveedor = dict_proveedores.get(nombre_prov_sel)
 
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            submitted = st.form_submit_button("Registrar Producto")
-        with col_btn2:
-            limpiar = st.form_submit_button("🧹 Limpiar Campos")
-
-        if limpiar:
-            for key in list(st.session_state.keys()):
-                # Se eliminan los keys de registro para limpiar el formulario
-                if key in st.session_state and key not in ['id_mat', 'hilo_calc'] and not key.startswith(('id_', 'cant_')):
-                    del st.session_state[key]
-            # Usar st.text_input y st.selectbox para controlar los valores que se limpian
-            st.rerun()
+        # Solo queda el botón de registro, el de limpiar fue eliminado
+        submitted = st.form_submit_button("Registrar Producto")
 
         if submitted:
             if not id_material:
@@ -324,85 +303,73 @@ with tab2:
         material_seleccionados.append(mat_id)
         cantidades.append(cant)
 
-    col_calc, col_clear = st.columns(2)
-    with col_calc:
-        if st.button("Calcular Precio"):
-            costo_total_cuentas = sum(
-                cantidades[i] * obtener_costo_cuenta(material_seleccionados[i])
-                for i in range(5)
-                if material_seleccionados[i] != " "
-            )
-            costo_hilo = 2.4 if tipo_hilo == "Nylon" else 4.0 if tipo_hilo == "Negro" else 0.0
-            costo_mano = 40.0
-            costo_empaque = 10.0
-            costos_fijos = costo_hilo + costo_mano + costo_empaque
-            marketing = 0.15 * (costo_total_cuentas + costos_fijos)
-            precio_real = (costo_total_cuentas + costos_fijos + marketing) * 1.30
+    # El botón de limpiar campos ha sido eliminado
+    if st.button("Calcular Precio"):
+        costo_total_cuentas = sum(
+            cantidades[i] * obtener_costo_cuenta(material_seleccionados[i])
+            for i in range(5)
+            if material_seleccionados[i] != " "
+        )
+        costo_hilo = 2.4 if tipo_hilo == "Nylon" else 4.0 if tipo_hilo == "Negro" else 0.0
+        costo_mano = 40.0
+        costo_empaque = 10.0
+        costos_fijos = costo_hilo + costo_mano + costo_empaque
+        marketing = 0.15 * (costo_total_cuentas + costos_fijos)
+        precio_real = (costo_total_cuentas + costos_fijos + marketing) * 1.30
 
-            if precio_real <= 160:
-                clasificacion, precio_clasificado = "C", 160.0
-            elif precio_real <= 200:
-                clasificacion, precio_clasificado = "B", 200.0
-            else:
-                clasificacion, precio_clasificado = "A", 250.0
+        if precio_real <= 160:
+            clasificacion, precio_clasificado = "C", 160.0
+        elif precio_real <= 200:
+            clasificacion, precio_clasificado = "B", 200.0
+        else:
+            clasificacion, precio_clasificado = "A", 250.0
 
-            st.success(f"**Costo total:** ${costo_total_cuentas + costos_fijos:.2f}")
-            st.write(f"**Precio real:** ${precio_real:.2f}")
-            st.info(f"**Clasificación:** {clasificacion}, Precio Clasificado: ${precio_clasificado:.2f}")
+        st.success(f"**Costo total:** ${costo_total_cuentas + costos_fijos:.2f}")
+        st.write(f"**Precio real:** ${precio_real:.2f}")
+        st.info(f"**Clasificación:** {clasificacion}, Precio Clasificado: ${precio_clasificado:.2f}")
 
-            st.session_state.update({
-                'costo_total': costo_total_cuentas + costos_fijos,
-                'precio_real': precio_real,
-                'clasificacion': clasificacion,
-                'precio_clasificado': precio_clasificado
-            })
-
-    with col_clear:
-        if st.button("🧹 Limpiar Campos"):
-            limpiar_campos_calculadora()
+        st.session_state.update({
+            'costo_total': costo_total_cuentas + costos_fijos,
+            'precio_real': precio_real,
+            'clasificacion': clasificacion,
+            'precio_clasificado': precio_clasificado
+        })
 
     st.markdown("### Registro de Pulsera Final")
     id_producto = st.text_input("ID Producto Pulsera", key='id_producto_pulsera_input')
     descripcion_pulsera = st.text_input("Descripción Pulsera", key='descripcion_pulsera_input')
 
-    col_reg, col_limpiar = st.columns(2)
-    with col_reg:
-        if st.button("Registrar Pulsera"):
-            if not id_producto or not descripcion_pulsera:
-                st.error("Debes ingresar ID y descripción del producto")
-            elif 'costo_total' not in st.session_state:
-                st.error("Primero debes calcular el precio")
-            else:
-                conexion = conectar_db()
-                if conexion:
-                    cursor = conexion.cursor()
-                    try:
-                        sql = """
-                        INSERT INTO PULSERAS (ID_PRODUCTO, DESCRIPCION, COSTO, PRECIO, CLASIFICACION, PRECIO_CLASIFICADO)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                        """
-                        datos = (
-                            id_producto,
-                            descripcion_pulsera,
-                            st.session_state['costo_total'],
-                            st.session_state['precio_real'],
-                            st.session_state['clasificacion'],
-                            st.session_state['precio_clasificado']
-                        )
-                        cursor.execute(sql, datos)
-                        conexion.commit()
-                        st.success(f"Pulsera '{descripcion_pulsera}' registrada correctamente")
-                    except Error as e:
-                        st.error(f"No se pudo registrar la pulsera: {e}")
-                    finally:
-                        cursor.close()
-                        conexion.close()
-
-    with col_limpiar:
-        if st.button("🧹 Limpiar Formulario Pulsera"):
-            st.session_state['id_producto_pulsera_input'] = ""
-            st.session_state['descripcion_pulsera_input'] = ""
-            st.rerun()
+    # El botón de limpiar formulario de pulsera ha sido eliminado
+    if st.button("Registrar Pulsera"):
+        if not id_producto or not descripcion_pulsera:
+            st.error("Debes ingresar ID y descripción del producto")
+        elif 'costo_total' not in st.session_state:
+            st.error("Primero debes calcular el precio")
+        else:
+            conexion = conectar_db()
+            if conexion:
+                cursor = conexion.cursor()
+                try:
+                    sql = """
+                    INSERT INTO PULSERAS (ID_PRODUCTO, DESCRIPCION, COSTO, PRECIO, CLASIFICACION, PRECIO_CLASIFICADO)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """
+                    datos = (
+                        id_producto,
+                        descripcion_pulsera,
+                        st.session_state['costo_total'],
+                        st.session_state['precio_real'],
+                        st.session_state['clasificacion'],
+                        st.session_state['precio_clasificado']
+                    )
+                    cursor.execute(sql, datos)
+                    conexion.commit()
+                    st.success(f"Pulsera '{descripcion_pulsera}' registrada correctamente")
+                except Error as e:
+                    st.error(f"No se pudo registrar la pulsera: {e}")
+                finally:
+                    cursor.close()
+                    conexion.close()
 
 
 # =========================
