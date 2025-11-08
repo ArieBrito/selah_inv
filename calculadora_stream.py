@@ -14,6 +14,7 @@ import pandas as pd
 # =====================================
 def conectar_db():
     try:
+        # Nota: `st.secrets` está siendo utilizado para la conexión a la base de datos
         conexion = mysql.connector.connect(
             host=st.secrets["DB_HOST"],
             port=st.secrets["DB_PORT"],
@@ -38,18 +39,46 @@ def conectar_db():
 # =====================================
 # Funciones auxiliares
 # =====================================
-def obtener_ids_material():
+
+# La función anterior 'obtener_ids_material' ha sido reemplazada por esta,
+# que ahora devuelve la lista de opciones descriptivas para el selectbox
+# y un mapa para encontrar el ID_MATERIAL real.
+def obtener_material_opciones_display():
+    """Devuelve una tupla (lista_de_opciones_display, mapa_display_a_id)."""
     conexion = conectar_db()
+    # Estado inicial: solo la opción vacía
+    mapa = {" ": " "}
+    opciones_display = [" "]
+
     if conexion is None:
-        return [" "]
+        return opciones_display, mapa
+
     try:
         cursor = conexion.cursor()
-        cursor.execute("SELECT ID_MATERIAL FROM MATERIALES")
+        # Seleccionamos campos clave para la descripción del catálogo
+        cursor.execute("SELECT ID_MATERIAL, TIPO, PIEDRA, COLOR, DESCRIPCION FROM MATERIALES ORDER BY ID_MATERIAL")
         result = cursor.fetchall()
-        return [" "] + [r[0] for r in result]
+
+        for id_mat, tipo, piedra, color, desc in result:
+            # Construir la cadena descriptiva para el usuario
+            parts = []
+            if tipo and tipo.strip() and tipo.strip() != ' ': parts.append(tipo)
+            if piedra and piedra.strip() and piedra.strip() != ' ': parts.append(piedra)
+            if color and color.strip() and color.strip() != ' ': parts.append(color)
+            if desc and desc.strip() and desc.strip() != ' ': parts.append(f"({desc})")
+            
+            # Formato de la cadena: ID | TIPO - PIEDRA - COLOR (DESCRIPCION)
+            display_string = f"{id_mat} | {' - '.join(parts)}"
+            
+            # Mapear la cadena descriptiva al ID real
+            mapa[display_string] = id_mat
+            opciones_display.append(display_string)
+
+        return opciones_display, mapa
+        
     except Error as e:
-        st.error(f"Error al obtener IDs de material: {e}")
-        return [" "]
+        st.error(f"Error al obtener catálogo de material para display: {e}")
+        return [" "], {" ": " "}
     finally:
         if conexion.is_connected():
             cursor.close()
@@ -71,7 +100,9 @@ def obtener_costo_cuenta(id_material):
         return 0.0
     finally:
         cursor.close()
-        conexion.close()
+        # Verificar la conexión antes de cerrar para evitar errores
+        if 'conexion' in locals() and conexion.is_connected():
+            conexion.close()
 
 
 def obtener_proveedores():
@@ -88,7 +119,8 @@ def obtener_proveedores():
         return []
     finally:
         cursor.close()
-        conexion.close()
+        if 'conexion' in locals() and conexion.is_connected():
+            conexion.close()
 
 
 def obtener_catalogo_materiales():
@@ -121,7 +153,8 @@ def obtener_catalogo_materiales():
         st.error(f"Error al obtener catálogo: {e}")
         return pd.DataFrame()
     finally:
-        conexion.close()
+        if 'conexion' in locals() and conexion.is_connected():
+            conexion.close()
 
 
 def obtener_catalogo_pulseras():
@@ -147,16 +180,37 @@ def obtener_catalogo_pulseras():
         st.error(f"Error al obtener catálogo de pulseras: {e}")
         return pd.DataFrame()
     finally:
-        conexion.close()
+        if 'conexion' in locals() and conexion.is_connected():
+            conexion.close()
 
 
 # =====================================
-# Función para limpiar los campos de la calculadora
+# Función para limpiar los campos de la calculadora (CORREGIDA)
 # =====================================
 def limpiar_campos_calculadora():
-    for key in list(st.session_state.keys()):
-        if key.startswith(("id_", "cant_")):
+    # 1. Resetear el selectbox de Tipo de Hilo
+    if 'hilo_calc' in st.session_state:
+        st.session_state['hilo_calc'] = " " # El valor inicial es la primera opción, que es " "
+        
+    # 2. Resetear los 5 pares de inputs de Material y Cantidad
+    for i in range(5):
+        id_key = f"id_{i}"
+        cant_key = f"cant_{i}"
+        
+        # Resetear el selectbox de material a la opción vacía (" ")
+        if id_key in st.session_state:
+            # El valor inicial del selectbox (opciones_display[0]) es " "
+            st.session_state[id_key] = " "
+
+        # Resetear el number_input a 0
+        if cant_key in st.session_state:
+            st.session_state[cant_key] = 0
+
+    # 3. Limpiar los resultados de la última calculadora
+    for key in ['costo_total', 'precio_real', 'clasificacion', 'precio_clasificado']:
+         if key in st.session_state:
             del st.session_state[key]
+            
     st.rerun()
 
 
@@ -173,7 +227,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # =========================
-# TAB 1: Registro de Materiales
+# TAB 1: Registro de Materiales (Sin cambios)
 # =========================
 with tab1:
     st.subheader("🧾 Registro de Nuevos Materiales")
@@ -253,13 +307,16 @@ with tab1:
 
 
 # =========================
-# TAB 2: Calculadora de Pulseras
+# TAB 2: Calculadora de Pulseras (MODIFICADA)
 # =========================
 with tab2:
     st.subheader("💰 Calculadora de Pulseras")
-    tipo_hilo = st.selectbox("Tipo de Hilo", [" "] + ["Nylon", "Negro"], index=0)
+    # AÑADIR CLAVE para control de limpieza
+    tipo_hilo = st.selectbox("Tipo de Hilo", [" "] + ["Nylon", "Negro"], index=0, key='hilo_calc')
 
-    ids_material = obtener_ids_material()
+    # OBTENER LAS OPCIONES DESCRIPTIVAS Y EL MAPA DE ID
+    opciones_display, material_mapa = obtener_material_opciones_display()
+    
     material_seleccionados = []
     cantidades = []
 
@@ -267,9 +324,19 @@ with tab2:
     for i in range(5):
         col1, col2 = st.columns(2)
         with col1:
-            mat_id = st.selectbox(f"ID Material {i+1}", options=ids_material, key=f"id_{i}", index=0)
+            # Usar la lista descriptiva en el selectbox
+            mat_desc = st.selectbox(
+                f"Material {i+1} (ID | Tipo - Piedra - Color (Desc))", 
+                options=opciones_display, 
+                key=f"id_{i}", 
+                index=0
+            )
+            # Obtener el ID_MATERIAL real a partir del mapa
+            mat_id = material_mapa.get(mat_desc, " ")
         with col2:
             cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=0, step=1, key=f"cant_{i}")
+        
+        # El ID a usar para la lógica de cálculo es mat_id
         material_seleccionados.append(mat_id)
         cantidades.append(cant)
 
@@ -281,6 +348,8 @@ with tab2:
                 for i in range(5)
                 if material_seleccionados[i] != " "
             ])
+            
+            # Lógica de costos (sin cambios)
             costo_hilo = 2.4 if tipo_hilo == "Nylon" else 4.0 if tipo_hilo == "Negro" else 0.0
             costo_mano = 40.0
             costo_empaque = 10.0
@@ -289,6 +358,7 @@ with tab2:
             precio_real = costo_total_cuentas + costos_fijos + marketing
             precio_real += 0.30 * precio_real
 
+            # Lógica de clasificación (sin cambios)
             if precio_real <= 160:
                 clasificacion = "C"
                 precio_clasificado = 160.0
@@ -303,18 +373,21 @@ with tab2:
             st.write(f"**Precio real:** ${precio_real:.2f}")
             st.info(f"**Clasificación:** {clasificacion}, Precio Clasificado: ${precio_clasificado:.2f}")
 
+            # Guardar resultados en session_state (sin cambios)
             st.session_state['costo_total'] = costo_total_cuentas + costos_fijos
             st.session_state['precio_real'] = precio_real
             st.session_state['clasificacion'] = clasificacion
             st.session_state['precio_clasificado'] = precio_clasificado
 
     with col_clear:
+        # El botón de limpiar campos llama a la función corregida
         if st.button("🧹 Limpiar Campos"):
             limpiar_campos_calculadora()
 
     st.markdown("### Registro de Pulsera Final")
-    id_producto = st.text_input("ID Producto Pulsera")
-    descripcion_pulsera = st.text_input("Descripción Pulsera")
+    # Asegurarse de que las keys de session_state para los inputs del registro de pulsera estén definidas para evitar errores al limpiar
+    id_producto = st.text_input("ID Producto Pulsera", key='id_producto_pulsera_input')
+    descripcion_pulsera = st.text_input("Descripción Pulsera", key='descripcion_pulsera_input')
 
     col_reg, col_limpiar = st.columns(2)
     with col_reg:
@@ -347,17 +420,23 @@ with tab2:
                         st.error(f"No se pudo registrar la pulsera: {e}")
                     finally:
                         cursor.close()
-                        conexion.close()
+                        if 'conexion' in locals() and conexion.is_connected():
+                            conexion.close()
 
     with col_limpiar:
         if st.button("🧹 Limpiar Formulario Pulsera"):
-            st.session_state['id_producto'] = ""
-            st.session_state['descripcion_pulsera'] = ""
+            # Limpiar los campos de registro de pulsera
+            if 'id_producto_pulsera_input' in st.session_state:
+                 st.session_state['id_producto_pulsera_input'] = ""
+            if 'descripcion_pulsera_input' in st.session_state:
+                 st.session_state['descripcion_pulsera_input'] = ""
+            # No es necesario un st.rerun si solo se cambian los valores de session_state de los inputs
+            # pero lo dejo para asegurar el comportamiento esperado.
             st.rerun()
 
 
 # =========================
-# TAB 3: Catálogo de Materiales
+# TAB 3: Catálogo de Materiales (Sin cambios)
 # =========================
 with tab3:
     st.subheader("📚 Catálogo de Materiales")
@@ -376,7 +455,7 @@ with tab3:
 
 
 # =========================
-# TAB 4: Catálogo de Pulseras
+# TAB 4: Catálogo de Pulseras (Sin cambios)
 # =========================
 with tab4:
     st.subheader("📿 Catálogo de Pulseras")
