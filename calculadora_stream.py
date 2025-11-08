@@ -34,6 +34,7 @@ def conectar_db():
         st.error(f"⚠️ Error de conexión con la base de datos: {e}")
         return None
 
+
 # =====================================
 # Funciones auxiliares
 # =====================================
@@ -54,6 +55,7 @@ def obtener_ids_material():
             cursor.close()
             conexion.close()
 
+
 def obtener_costo_cuenta(id_material):
     if not id_material or id_material == " ":
         return 0.0
@@ -71,6 +73,7 @@ def obtener_costo_cuenta(id_material):
         cursor.close()
         conexion.close()
 
+
 def obtener_proveedores():
     conexion = conectar_db()
     if conexion is None:
@@ -86,6 +89,7 @@ def obtener_proveedores():
     finally:
         cursor.close()
         conexion.close()
+
 
 def obtener_catalogo_materiales():
     conexion = conectar_db()
@@ -119,6 +123,7 @@ def obtener_catalogo_materiales():
     finally:
         conexion.close()
 
+
 def obtener_catalogo_pulseras():
     """Devuelve un DataFrame con todas las pulseras registradas."""
     conexion = conectar_db()
@@ -143,6 +148,17 @@ def obtener_catalogo_pulseras():
         return pd.DataFrame()
     finally:
         conexion.close()
+
+
+# =====================================
+# Función para limpiar los campos de la calculadora
+# =====================================
+def limpiar_campos_calculadora():
+    for key in list(st.session_state.keys()):
+        if key.startswith(("id_", "cant_")):
+            del st.session_state[key]
+    st.rerun()
+
 
 # =====================================
 # INTERFAZ PRINCIPAL
@@ -195,7 +211,7 @@ with tab1:
             for key in list(st.session_state.keys()):
                 if key.startswith(("id_mat", "color_mat", "desc_mat", "largo_mat", "ancho_mat", "costotira_mat", "cantidad_mat")):
                     st.session_state[key] = ""
-            st.experimental_rerun()
+            st.rerun()
 
         if submitted:
             if not id_material:
@@ -234,6 +250,7 @@ with tab1:
                         finally:
                             cursor.close()
                             conexion.close()
+
 
 # =========================
 # TAB 2: Calculadora de Pulseras
@@ -293,10 +310,7 @@ with tab2:
 
     with col_clear:
         if st.button("🧹 Limpiar Campos"):
-            for key in list(st.session_state.keys()):
-                if key.startswith(("id_", "cant_")):
-                    del st.session_state[key]
-            st.rerun()
+            limpiar_campos_calculadora()
 
     st.markdown("### Registro de Pulsera Final")
     id_producto = st.text_input("ID Producto Pulsera")
@@ -341,6 +355,7 @@ with tab2:
             st.session_state['descripcion_pulsera'] = ""
             st.rerun()
 
+
 # =========================
 # TAB 3: Catálogo de Materiales
 # =========================
@@ -359,6 +374,7 @@ with tab3:
                 mime="text/csv"
             )
 
+
 # =========================
 # TAB 4: Catálogo de Pulseras
 # =========================
@@ -376,5 +392,3 @@ with tab4:
                 file_name="catalogo_pulseras.csv",
                 mime="text/csv"
             )
-
-
