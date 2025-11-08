@@ -48,15 +48,27 @@ def obtener_material_opciones_display():
 
     try:
         cursor = conexion.cursor()
-        cursor.execute("SELECT ID_MATERIAL, TIPO, PIEDRA, COLOR, DESCRIPCION FROM MATERIALES ORDER BY ID_MATERIAL")
+        # Se ha actualizado la query para incluir FORMA, TEXTURA, LARGO, ANCHO
+        # Se sigue obteniendo COLOR, pero se excluye del string de visualización.
+        query = "SELECT ID_MATERIAL, TIPO, PIEDRA, FORMA, TEXTURA, LARGO, ANCHO, COLOR, DESCRIPCION FROM MATERIALES ORDER BY ID_MATERIAL"
+        cursor.execute(query)
         result = cursor.fetchall()
 
-        for id_mat, tipo, piedra, color, desc in result:
+        # Desempaquetando 9 valores
+        for id_mat, tipo, piedra, forma, textura, largo, ancho, color, desc in result:
             parts = []
-            if tipo and tipo.strip(): parts.append(tipo)
-            if piedra and piedra.strip(): parts.append(piedra)
-            if color and color.strip(): parts.append(color)
-            if desc and desc.strip(): parts.append(f"({desc})")
+            if tipo and str(tipo).strip(): parts.append(tipo)
+            if piedra and str(piedra).strip(): parts.append(piedra)
+            
+            # Agregando FORMA, TEXTURA, LARGO y ANCHO al string de visualización
+            if forma and str(forma).strip(): parts.append(forma)
+            if textura and str(textura).strip(): parts.append(textura)
+            if largo is not None and str(largo).strip(): parts.append(f"L:{largo}")
+            if ancho is not None and str(ancho).strip(): parts.append(f"A:{ancho}")
+
+            # Se omite 'COLOR' de la visualización según la solicitud.
+
+            if desc and str(desc).strip(): parts.append(f"({desc})")
 
             display_string = f"{id_mat} | {' - '.join(parts)}"
             mapa[display_string] = id_mat
@@ -179,10 +191,9 @@ def inicializar_calculadora_state():
 
 
 # =====================================
-# Función para limpiar calculadora (Mantenida solo para evitar errores si se llama accidentalmente)
+# Función para limpiar calculadora
 # =====================================
 def limpiar_campos_calculadora():
-    # Esta función se mantiene pero ya no es llamada por un botón
     DEFAULT_SELECTBOX_VALUE = " "
     st.session_state['hilo_calc'] = DEFAULT_SELECTBOX_VALUE
     for i in range(5):
@@ -190,7 +201,7 @@ def limpiar_campos_calculadora():
         st.session_state[f"cant_{i}"] = 0
     for key in ['costo_total', 'precio_real', 'clasificacion', 'precio_clasificado']:
         st.session_state.pop(key, None)
-    st.rerun()  # ✅ reemplazo correcto de experimental_rerun
+    st.rerun() # ✅ reemplazo correcto de experimental_rerun
 
 
 # =====================================
@@ -234,8 +245,19 @@ with tab1:
                 dict_proveedores = {p[1]: p[0] for p in proveedores}
                 id_proveedor = dict_proveedores.get(nombre_prov_sel)
 
-        # Se elimina el botón de Limpiar Campos. Solo queda el botón de Registrar.
-        submitted = st.form_submit_button("Registrar Producto")
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            submitted = st.form_submit_button("Registrar Producto")
+        with col_btn2:
+            limpiar = st.form_submit_button("🧹 Limpiar Campos")
+
+        if limpiar:
+            for key in list(st.session_state.keys()):
+                # Se eliminan los keys de registro para limpiar el formulario
+                if key in st.session_state and key not in ['id_mat', 'hilo_calc'] and not key.startswith(('id_', 'cant_')):
+                    del st.session_state[key]
+            # Usar st.text_input y st.selectbox para controlar los valores que se limpian
+            st.rerun()
 
         if submitted:
             if not id_material:
@@ -251,11 +273,11 @@ with tab1:
                         st.error("El ID ya existe")
                     else:
                         try:
-                            # Asegurar que los campos numéricos se manejen correctamente
-                            costo_tira_f = float(costo_tira) if costo_tira else 0.0
-                            cantidad_i = int(cantidad) if cantidad else 0
-                            largo_f = float(largo) if largo else None
-                            ancho_f = float(ancho) if ancho else None
+                            costo_tira_f = float(costo_tira)
+                            cantidad_i = int(cantidad)
+                            # Conversión de Largo y Ancho a float, permitiendo que sean NULL si están vacíos
+                            largo_f = float(largo) if largo and largo.strip() else None
+                            ancho_f = float(ancho) if ancho and ancho.strip() else None
                             costo_cuenta = costo_tira_f / cantidad_i if cantidad_i != 0 else 0
 
                             sql = """
@@ -269,7 +291,7 @@ with tab1:
                             conexion.commit()
                             st.success(f"✅ Producto registrado correctamente: {id_material}")
                         except ValueError:
-                            st.error("Verifica que los campos numéricos sean correctos (Costo Tira, Largo, Ancho, Cantidad).")
+                            st.error("Verifica que los campos numéricos sean correctos")
                         except Error as e:
                             st.error(f"No se pudo registrar el producto: {e}")
                         finally:
@@ -302,73 +324,85 @@ with tab2:
         material_seleccionados.append(mat_id)
         cantidades.append(cant)
 
-    # Se elimina el layout de columnas y el botón de Limpiar Campos de la calculadora.
-    if st.button("Calcular Precio"):
-        costo_total_cuentas = sum(
-            cantidades[i] * obtener_costo_cuenta(material_seleccionados[i])
-            for i in range(5)
-            if material_seleccionados[i] != " "
-        )
-        costo_hilo = 2.4 if tipo_hilo == "Nylon" else 4.0 if tipo_hilo == "Negro" else 0.0
-        costo_mano = 40.0
-        costo_empaque = 10.0
-        costos_fijos = costo_hilo + costo_mano + costo_empaque
-        marketing = 0.15 * (costo_total_cuentas + costos_fijos)
-        precio_real = (costo_total_cuentas + costos_fijos + marketing) * 1.30
+    col_calc, col_clear = st.columns(2)
+    with col_calc:
+        if st.button("Calcular Precio"):
+            costo_total_cuentas = sum(
+                cantidades[i] * obtener_costo_cuenta(material_seleccionados[i])
+                for i in range(5)
+                if material_seleccionados[i] != " "
+            )
+            costo_hilo = 2.4 if tipo_hilo == "Nylon" else 4.0 if tipo_hilo == "Negro" else 0.0
+            costo_mano = 40.0
+            costo_empaque = 10.0
+            costos_fijos = costo_hilo + costo_mano + costo_empaque
+            marketing = 0.15 * (costo_total_cuentas + costos_fijos)
+            precio_real = (costo_total_cuentas + costos_fijos + marketing) * 1.30
 
-        if precio_real <= 160:
-            clasificacion, precio_clasificado = "C", 160.0
-        elif precio_real <= 200:
-            clasificacion, precio_clasificado = "B", 200.0
-        else:
-            clasificacion, precio_clasificado = "A", 250.0
+            if precio_real <= 160:
+                clasificacion, precio_clasificado = "C", 160.0
+            elif precio_real <= 200:
+                clasificacion, precio_clasificado = "B", 200.0
+            else:
+                clasificacion, precio_clasificado = "A", 250.0
 
-        st.success(f"**Costo total:** ${costo_total_cuentas + costos_fijos:.2f}")
-        st.write(f"**Precio real:** ${precio_real:.2f}")
-        st.info(f"**Clasificación:** {clasificacion}, Precio Clasificado: ${precio_clasificado:.2f}")
+            st.success(f"**Costo total:** ${costo_total_cuentas + costos_fijos:.2f}")
+            st.write(f"**Precio real:** ${precio_real:.2f}")
+            st.info(f"**Clasificación:** {clasificacion}, Precio Clasificado: ${precio_clasificado:.2f}")
 
-        st.session_state.update({
-            'costo_total': costo_total_cuentas + costos_fijos,
-            'precio_real': precio_real,
-            'clasificacion': clasificacion,
-            'precio_clasificado': precio_clasificado
-        })
+            st.session_state.update({
+                'costo_total': costo_total_cuentas + costos_fijos,
+                'precio_real': precio_real,
+                'clasificacion': clasificacion,
+                'precio_clasificado': precio_clasificado
+            })
+
+    with col_clear:
+        if st.button("🧹 Limpiar Campos"):
+            limpiar_campos_calculadora()
 
     st.markdown("### Registro de Pulsera Final")
     id_producto = st.text_input("ID Producto Pulsera", key='id_producto_pulsera_input')
     descripcion_pulsera = st.text_input("Descripción Pulsera", key='descripcion_pulsera_input')
 
-    # Se elimina el layout de columnas y el botón de Limpiar Formulario Pulsera.
-    if st.button("Registrar Pulsera"):
-        if not id_producto or not descripcion_pulsera:
-            st.error("Debes ingresar ID y descripción del producto")
-        elif 'costo_total' not in st.session_state:
-            st.error("Primero debes calcular el precio")
-        else:
-            conexion = conectar_db()
-            if conexion:
-                cursor = conexion.cursor()
-                try:
-                    sql = """
-                    INSERT INTO PULSERAS (ID_PRODUCTO, DESCRIPCION, COSTO, PRECIO, CLASIFICACION, PRECIO_CLASIFICADO)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """
-                    datos = (
-                        id_producto,
-                        descripcion_pulsera,
-                        st.session_state['costo_total'],
-                        st.session_state['precio_real'],
-                        st.session_state['clasificacion'],
-                        st.session_state['precio_clasificado']
-                    )
-                    cursor.execute(sql, datos)
-                    conexion.commit()
-                    st.success(f"Pulsera '{descripcion_pulsera}' registrada correctamente")
-                except Error as e:
-                    st.error(f"No se pudo registrar la pulsera: {e}")
-                finally:
-                    cursor.close()
-                    conexion.close()
+    col_reg, col_limpiar = st.columns(2)
+    with col_reg:
+        if st.button("Registrar Pulsera"):
+            if not id_producto or not descripcion_pulsera:
+                st.error("Debes ingresar ID y descripción del producto")
+            elif 'costo_total' not in st.session_state:
+                st.error("Primero debes calcular el precio")
+            else:
+                conexion = conectar_db()
+                if conexion:
+                    cursor = conexion.cursor()
+                    try:
+                        sql = """
+                        INSERT INTO PULSERAS (ID_PRODUCTO, DESCRIPCION, COSTO, PRECIO, CLASIFICACION, PRECIO_CLASIFICADO)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        """
+                        datos = (
+                            id_producto,
+                            descripcion_pulsera,
+                            st.session_state['costo_total'],
+                            st.session_state['precio_real'],
+                            st.session_state['clasificacion'],
+                            st.session_state['precio_clasificado']
+                        )
+                        cursor.execute(sql, datos)
+                        conexion.commit()
+                        st.success(f"Pulsera '{descripcion_pulsera}' registrada correctamente")
+                    except Error as e:
+                        st.error(f"No se pudo registrar la pulsera: {e}")
+                    finally:
+                        cursor.close()
+                        conexion.close()
+
+    with col_limpiar:
+        if st.button("🧹 Limpiar Formulario Pulsera"):
+            st.session_state['id_producto_pulsera_input'] = ""
+            st.session_state['descripcion_pulsera_input'] = ""
+            st.rerun()
 
 
 # =========================
