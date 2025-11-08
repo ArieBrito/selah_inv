@@ -339,7 +339,7 @@ with tab2:
         if st.button("🧹 Limpiar Formulario Pulsera"):
             st.session_state['id_producto'] = ""
             st.session_state['descripcion_pulsera'] = ""
-            st.experimental_rerun()
+            st.rerun()
 
 # =========================
 # TAB 3: Catálogo de Materiales
@@ -376,4 +376,5 @@ with tab4:
                 file_name="catalogo_pulseras.csv",
                 mime="text/csv"
             )
+
 
