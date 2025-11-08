@@ -296,7 +296,7 @@ with tab2:
             for key in list(st.session_state.keys()):
                 if key.startswith(("id_", "cant_")):
                     del st.session_state[key]
-            st.experimental_rerun()
+            st.rerun()
 
     st.markdown("### Registro de Pulsera Final")
     id_producto = st.text_input("ID Producto Pulsera")
@@ -376,3 +376,4 @@ with tab4:
                 file_name="catalogo_pulseras.csv",
                 mime="text/csv"
             )
+
