@@ -185,6 +185,27 @@ def obtener_catalogo_pulseras():
 
 
 # =====================================
+# Inicialización de estado para la Calculadora (NUEVO)
+# =====================================
+def inicializar_calculadora_state():
+    """Asegura que todas las claves necesarias para la calculadora existan con valores por defecto."""
+    DEFAULT_SELECTBOX_VALUE = " "
+
+    if 'hilo_calc' not in st.session_state:
+        st.session_state['hilo_calc'] = DEFAULT_SELECTBOX_VALUE
+
+    for i in range(5):
+        id_key = f"id_{i}"
+        cant_key = f"cant_{i}"
+        
+        if id_key not in st.session_state:
+            st.session_state[id_key] = DEFAULT_SELECTBOX_VALUE
+            
+        if cant_key not in st.session_state:
+            st.session_state[cant_key] = 0
+
+
+# =====================================
 # Función para limpiar los campos de la calculadora (CORREGIDA)
 # =====================================
 def limpiar_campos_calculadora():
@@ -204,7 +225,7 @@ def limpiar_campos_calculadora():
         if id_key in st.session_state:
             st.session_state[id_key] = DEFAULT_SELECTBOX_VALUE
 
-        # Resetear el number_input a 0 (CUMPLIENDO LA PETICIÓN DEL USUARIO)
+        # Resetear el number_input a 0 
         if cant_key in st.session_state:
             st.session_state[cant_key] = 0
 
@@ -219,6 +240,10 @@ def limpiar_campos_calculadora():
 # =====================================
 # INTERFAZ PRINCIPAL
 # =====================================
+
+# Inicialización de estado al comienzo del script
+inicializar_calculadora_state()
+
 st.title("Selah: Sistema de Gestión")
 
 tab1, tab2, tab3, tab4 = st.tabs([
@@ -315,6 +340,7 @@ with tab1:
 with tab2:
     st.subheader("💰 Calculadora de Pulseras")
     # AÑADIR CLAVE para control de limpieza
+    # Usa la clave y el valor de session_state para mantener el estado
     tipo_hilo = st.selectbox("Tipo de Hilo", [" "] + ["Nylon", "Negro"], index=0, key='hilo_calc')
 
     # OBTENER LAS OPCIONES DESCRIPTIVAS Y EL MAPA DE ID
@@ -327,7 +353,7 @@ with tab2:
     for i in range(5):
         col1, col2 = st.columns(2)
         with col1:
-            # Usar la lista descriptiva en el selectbox
+            # Usar la clave y el valor de session_state para Material (id_i)
             mat_desc = st.selectbox(
                 f"Material {i+1} (ID | Tipo - Piedra - Color (Desc))", 
                 options=opciones_display, 
@@ -337,8 +363,8 @@ with tab2:
             # Obtener el ID_MATERIAL real a partir del mapa
             mat_id = material_mapa.get(mat_desc, " ")
         with col2:
-            # Los number_input se definen aquí con key='cant_i' y valor inicial 0
-            cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=0, step=1, key=f"cant_{i}")
+            # Usar la clave y el valor de session_state para Cantidad (cant_i)
+            cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=st.session_state[f"cant_{i}"], step=1, key=f"cant_{i}")
         
         # El ID a usar para la lógica de cálculo es mat_id
         material_seleccionados.append(mat_id)
