@@ -203,6 +203,26 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # =========================
 # TAB 1: Registro de Materiales
 # =========================
+def limpiar_form_registro():
+    st.session_state["id_mat"] = ""
+    st.session_state["tipo_select"] = " "
+    st.session_state["tipo_input"] = ""
+    st.session_state["piedra_select"] = " "
+    st.session_state["piedra_input"] = ""
+    st.session_state["forma_select"] = " "
+    st.session_state["forma_input"] = ""
+    st.session_state["color"] = ""
+    st.session_state["descripcion"] = ""
+    st.session_state["textura_sel"] = " "
+    st.session_state["textura_input"] = ""
+    st.session_state["largo"] = ""
+    st.session_state["ancho"] = ""
+    st.session_state["costo_tira"] = ""
+    st.session_state["cantidad"] = ""
+    st.session_state["Proveedor"] = " "
+
+
+
 with tab1:
     st.subheader("🧾 Registro de Nuevos Materiales")
 
@@ -253,6 +273,11 @@ with tab1:
             id_proveedor = {p[1]: p[0] for p in proveedores}.get(nombre_prov_sel) if nombre_prov_sel != " " else None
 
         submitted = st.form_submit_button("Registrar Producto")
+        borrar = st.form_submit_button("🧹 Borrar Todo")
+        if borrar:
+            limpiar_form_registro()
+            st.rerun()
+
 
         # --------- VALIDACIONES ---------
         if submitted:
@@ -310,6 +335,21 @@ with tab1:
 # =========================
 # TAB 2: Calculadora de Pulseras
 # =========================
+def limpiar_calculadora_materiales():
+    st.session_state['hilo_calc'] = " "
+    for i in range(5):
+        st.session_state[f"id_{i}"] = " "
+        st.session_state[f"cant_{i}"] = 0
+
+def limpiar_registro_pulsera():
+    st.session_state['id_producto_pulsera_input'] = ""
+    st.session_state['descripcion_pulsera_input'] = ""
+    # También borra resultados previos del cálculo
+    st.session_state.pop('costo_total', None)
+    st.session_state.pop('precio_real', None)
+    st.session_state.pop('clasificacion', None)
+    st.session_state.pop('precio_clasificado', None)
+
 with tab2:
     st.subheader("💰 Calculadora de Pulseras")
 
@@ -332,8 +372,11 @@ with tab2:
             cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=st.session_state[f"cant_{i}"], step=1, key=f"cant_{i}")
         material_seleccionados.append(mat_id)
         cantidades.append(cant)
+    
+    if st.button("🧹 Limpiar Selección de Materiales"):
+        limpiar_calculadora_materiales()
+        st.rerun()
 
-    # El botón de limpiar campos ha sido eliminado
     if st.button("Calcular Precio"):
         costo_total_cuentas = sum(
             cantidades[i] * obtener_costo_cuenta(material_seleccionados[i])
@@ -368,6 +411,10 @@ with tab2:
     st.markdown("### Registro de Pulsera Final")
     id_producto = st.text_input("ID Producto Pulsera", key='id_producto_pulsera_input')
     descripcion_pulsera = st.text_input("Descripción Pulsera", key='descripcion_pulsera_input')
+    
+    if st.button("🧹 Borrar Formulario de Pulsera"):
+        limpiar_registro_pulsera()
+        st.rerun()
 
     # El botón de limpiar formulario de pulsera ha sido eliminado
     if st.button("Registrar Pulsera"):
@@ -427,4 +474,5 @@ with tab4:
         else:
 
             st.dataframe(df, use_container_width=True, hide_index=True)
+
 
