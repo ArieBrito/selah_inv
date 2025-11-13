@@ -48,8 +48,6 @@ def obtener_material_opciones_display():
 
     try:
         cursor = conexion.cursor()
-        # Se ha actualizado la query para incluir FORMA, TEXTURA, LARGO, ANCHO
-        # Se sigue obteniendo COLOR, pero se excluye del string de visualización.
         query = "SELECT ID_MATERIAL, TIPO, PIEDRA, FORMA, TEXTURA, LARGO, ANCHO, COLOR, DESCRIPCION FROM MATERIALES ORDER BY ID_MATERIAL"
         cursor.execute(query)
         result = cursor.fetchall()
@@ -189,11 +187,6 @@ def inicializar_calculadora_state():
         st.session_state.setdefault(f"id_{i}", DEFAULT_SELECTBOX_VALUE)
         st.session_state.setdefault(f"cant_{i}", 0)
 
-
-# NOTA: La función 'limpiar_campos_calculadora' ha sido eliminada
-# ya que no se utiliza tras la eliminación del botón "Limpiar Campos".
-
-
 # =====================================
 # INTERFAZ PRINCIPAL
 # =====================================
@@ -212,111 +205,52 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # =========================
 with tab1:
     st.subheader("🧾 Registro de Nuevos Materiales")
+
     with st.form("form_registro"):
         col1, col2 = st.columns(2)
+
+        # --------- COLUMNA 1 ---------
         with col1:
             id_material = st.text_input("ID Producto", key="id_mat")
 
-            # --- TIPO con opción "Otro" (Custom) ---
-            tipo_options = [" ", "Corazon", "Cristal", "Goldstone", "Inicial", "Perla", "Piedra", "Separador", "Zirconia", "Otro"]
-            tipo_sel = st.selectbox("Tipo", tipo_options, key="tipo_sel")
-            tipo = tipo_sel
-            if tipo_sel == "Otro":
-                # Si se selecciona "Otro", el valor final de 'tipo' es lo que se escriba aquí.
-                tipo = st.text_input("Especificar Tipo (Otro)", key="tipo_otro")
+            # --- TIPO ---
+            tipo_opciones = [" ", "Natural", "Sintético", "Plástico", "Metal"]
+            tipo_seleccion = st.selectbox("Tipo", tipo_opciones, key="tipo_select")
+            tipo_input = st.text_input("Escribir Tipo (opcional)", key="tipo_input")
+            tipo_final = tipo_input.strip() if tipo_input.strip() else tipo_seleccion
 
-            # --- PIEDRA con opción "Otro" (Custom) ---
-            piedra_options = [" ", "Agata", "Apatita", "Aventurina", "Onix", "Turquesa", "Sodalita", "Otro"]
-            piedra_sel = st.selectbox("Piedra", piedra_options, key="piedra_sel")
-            piedra = piedra_sel
-            if piedra_sel == "Otro":
-                # Si se selecciona "Otro", el valor final de 'piedra' es lo que se escriba aquí.
-                piedra = st.text_input("Especificar Piedra (Otro)", key="piedra_otro")
-            
-            # --- FORMA con opción "Otro" (Custom) ---
-            forma_options = [" ", "Redonda", "Gota", "Cruz", "Corazon", "Cilindro", "Otro"]
-            forma_sel = st.selectbox("Forma", forma_options, key="forma_sel")
-            forma = forma_sel
-            if forma_sel == "Otro":
-                # Si se selecciona "Otro", el valor final de 'forma' es lo que se escriba aquí.
-                forma = st.text_input("Especificar Forma (Otro)", key="forma_otro")
-            
+            # --- PIEDRA ---
+            piedra_opciones = [" ", "Cuarzo", "Turquesa", "Obsidiana"]
+            piedra_seleccion = st.selectbox("Piedra", piedra_opciones, key="piedra_select")
+            piedra_input = st.text_input("Escribir Piedra (opcional)", key="piedra_input")
+            piedra_final = piedra_input.strip() if piedra_input.strip() else piedra_seleccion
+
+            # --- FORMA ---
+            forma_opciones = [" ", "Redonda", "Cuadrada", "Facetada"]
+            forma_seleccion = st.selectbox("Forma", forma_opciones, key="forma_select")
+            forma_input = st.text_input("Escribir Forma (opcional)", key="forma_input")
+            forma_final = forma_input.strip() if forma_input.strip() else forma_seleccion
+
             color = st.text_input("Color")
             descripcion = st.text_input("Descripción")
-        
+
+
+        # --------- COLUMNA 2 ---------
         with col2:
-            # --- TEXTURA con opción "Otro" (Custom) ---
+            # --- TEXTURA ---
             textura_options = [" ", "Lisa", "Facetada", "Otro"]
             textura_sel = st.selectbox("Textura", textura_options, key="textura_sel")
-            textura = textura_sel
-            if textura_sel == "Otro":
-                # Si se selecciona "Otro", el valor final de 'textura' es lo que se escriba aquí.
-                textura = st.text_input("Especificar Textura (Otro)", key="textura_otro")
+            textura = st.text_input("Escribir Textura (opcional)", key="textura_input") if textura_sel == "Otro" else textura_sel
 
             largo = st.text_input("Largo")
             ancho = st.text_input("Ancho")
             costo_tira = st.text_input("Costo Tira")
             cantidad = st.text_input("Cantidad")
-            
+
             proveedores = obtener_proveedores()
             opciones_prov = [" "] + [p[1] for p in proveedores]
             nombre_prov_sel = st.selectbox("Proveedor", opciones_prov)
-            id_proveedor = None
-            if nombre_prov_sel != " ":
-                dict_proveedores = {p[1]: p[0] for p in proveedores}
-                id_proveedor = dict_proveedores.get(nombre_prov_sel)
-
-        # Solo queda el botón de registro, el de limpiar fue eliminado
-        submitted = st.form_submit_button("Registrar Producto")
-
-        if submitted:
-            # Se ha añadido una verificación adicional para asegurarse de que los campos de texto 'Otro' no estén vacíos
-            if not id_material:
-                st.error("El ID no puede quedar vacío")
-            elif id_proveedor is None:
-                st.error("Debes seleccionar un proveedor válido.")
-            elif tipo_sel == "Otro" and not tipo:
-                st.error("Por favor, especifica el Tipo de material.")
-            elif piedra_sel == "Otro" and not piedra:
-                st.error("Por favor, especifica la Piedra.")
-            elif forma_sel == "Otro" and not forma:
-                st.error("Por favor, especifica la Forma.")
-            elif textura_sel == "Otro" and not textura:
-                st.error("Por favor, especifica la Textura.")
-            else:
-                conexion = conectar_db()
-                if conexion:
-                    cursor = conexion.cursor()
-                    cursor.execute("SELECT COUNT(*) FROM MATERIALES WHERE ID_MATERIAL=%s", (id_material,))
-                    if cursor.fetchone()[0] > 0:
-                        st.error("El ID ya existe")
-                    else:
-                        try:
-                            costo_tira_f = float(costo_tira)
-                            cantidad_i = int(cantidad)
-                            # Conversión de Largo y Ancho a float, permitiendo que sean NULL si están vacíos
-                            largo_f = float(largo) if largo and largo.strip() else None
-                            ancho_f = float(ancho) if ancho and ancho.strip() else None
-                            costo_cuenta = costo_tira_f / cantidad_i if cantidad_i != 0 else 0
-
-                            sql = """
-                            INSERT INTO MATERIALES
-                            (ID_MATERIAL, TIPO, PIEDRA, FORMA, COLOR, DESCRIPCION, TEXTURA, LARGO, ANCHO, COSTO_TIRA, CANTIDAD, COSTO_CUENTA, ID_PROVEEDOR)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            """
-                            # Las variables tipo, piedra, forma y textura ahora contienen el valor final (seleccionado o escrito)
-                            datos = (id_material, tipo, piedra, forma, color, descripcion, textura,
-                                     largo_f, ancho_f, costo_tira_f, cantidad_i, costo_cuenta, id_proveedor)
-                            cursor.execute(sql, datos)
-                            conexion.commit()
-                            st.success(f"✅ Producto registrado correctamente: {id_material}")
-                        except ValueError:
-                            st.error("Verifica que los campos numéricos (Costo Tira, Cantidad, Largo, Ancho) sean correctos")
-                        except Error as e:
-                            st.error(f"No se pudo registrar el producto: {e}")
-                        finally:
-                            cursor.close()
-                            conexion.close()
+            id_proveedor = {p[1]: p[0] for p in proveedores}.get(nombre_prov_sel) if nombre_prov_sel !=_
 
 # =========================
 # TAB 2: Calculadora de Pulseras
@@ -436,4 +370,5 @@ with tab4:
         if df.empty:
             st.warning("No hay pulseras registradas o ocurrió un error.")
         else:
+
             st.dataframe(df, use_container_width=True, hide_index=True)
