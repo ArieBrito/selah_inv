@@ -250,8 +250,63 @@ with tab1:
             proveedores = obtener_proveedores()
             opciones_prov = [" "] + [p[1] for p in proveedores]
             nombre_prov_sel = st.selectbox("Proveedor", opciones_prov)
-            id_proveedor = {p[1]: p[0] for p in proveedores}.get(nombre_prov_sel) if nombre_prov_sel !=_
+            id_proveedor = {p[1]: p[0] for p in proveedores}.get(nombre_prov_sel) if nombre_prov_sel != " " else None
 
+        submitted = st.form_submit_button("Registrar Producto")
+
+        # --------- VALIDACIONES ---------
+        if submitted:
+            if not id_material.strip():
+                st.error("El ID no puede quedar vacío.")
+            elif not tipo_final.strip():
+                st.error("El campo Tipo no puede quedar vacío.")
+            elif not piedra_final.strip():
+                st.error("El campo Piedra no puede quedar vacío.")
+            elif not forma_final.strip():
+                st.error("El campo Forma no puede quedar vacío.")
+            elif id_proveedor is None:
+                st.error("Debes seleccionar un proveedor válido.")
+            else:
+                conexion = conectar_db()
+                if conexion:
+                    cursor = conexion.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM MATERIALES WHERE ID_MATERIAL=%s", (id_material,))
+                    if cursor.fetchone()[0] > 0:
+                        st.error("El ID ya existe.")
+                    else:
+                        try:
+                            costo_tira_f = float(costo_tira)
+                            cantidad_i = int(cantidad)
+                            largo_f = float(largo) if largo.strip() else None
+                            ancho_f = float(ancho) if ancho.strip() else None
+                            costo_cuenta = costo_tira_f / cantidad_i if cantidad_i else 0
+
+                            sql = """
+                            INSERT INTO MATERIALES
+                            (ID_MATERIAL, TIPO, PIEDRA, FORMA, COLOR, DESCRIPCION,
+                             TEXTURA, LARGO, ANCHO, COSTO_TIRA, CANTIDAD,
+                             COSTO_CUENTA, ID_PROVEEDOR)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """
+
+                            datos = (
+                                id_material, tipo_final, piedra_final, forma_final, color,
+                                descripcion, textura, largo_f, ancho_f,
+                                costo_tira_f, cantidad_i, costo_cuenta, id_proveedor
+                            )
+
+                            cursor.execute(sql, datos)
+                            conexion.commit()
+                            st.success(f"Producto registrado correctamente: {id_material}")
+
+                        except ValueError:
+                            st.error("Verifica los campos numéricos (Costo Tira, Cantidad, Largo, Ancho).")
+                        except Error as e:
+                            st.error(f"No se pudo registrar el producto: {e}")
+                        finally:
+                            cursor.close()
+                            conexion.close()
+                            
 # =========================
 # TAB 2: Calculadora de Pulseras
 # =========================
@@ -372,3 +427,4 @@ with tab4:
         else:
 
             st.dataframe(df, use_container_width=True, hide_index=True)
+
