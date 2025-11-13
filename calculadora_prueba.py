@@ -57,15 +57,10 @@ def obtener_material_opciones_display():
             parts = []
             if tipo and str(tipo).strip(): parts.append(tipo)
             if piedra and str(piedra).strip(): parts.append(piedra)
-            
-            # Agregando FORMA, TEXTURA, LARGO y ANCHO al string de visualización
             if forma and str(forma).strip(): parts.append(forma)
             if textura and str(textura).strip(): parts.append(textura)
             if largo is not None and str(largo).strip(): parts.append(f"L:{largo}")
             if ancho is not None and str(ancho).strip(): parts.append(f"A:{ancho}")
-
-            # Se omite 'COLOR' de la visualización según la solicitud.
-
             if desc and str(desc).strip(): parts.append(f"({desc})")
 
             display_string = f"{id_mat} | {' - '.join(parts)}"
@@ -77,9 +72,12 @@ def obtener_material_opciones_display():
         st.error(f"Error al obtener catálogo de material: {e}")
         return [" "], {" ": " "}
     finally:
-        if conexion.is_connected():
-            cursor.close()
-            conexion.close()
+        try:
+            if conexion.is_connected():
+                cursor.close()
+                conexion.close()
+        except Exception:
+            pass
 
 
 def obtener_costo_cuenta(id_material):
@@ -96,9 +94,12 @@ def obtener_costo_cuenta(id_material):
     except Error:
         return 0.0
     finally:
-        if conexion.is_connected():
-            cursor.close()
-            conexion.close()
+        try:
+            if conexion.is_connected():
+                cursor.close()
+                conexion.close()
+        except Exception:
+            pass
 
 
 def obtener_proveedores():
@@ -113,9 +114,12 @@ def obtener_proveedores():
         st.error(f"Error al obtener proveedores: {e}")
         return []
     finally:
-        if conexion.is_connected():
-            cursor.close()
-            conexion.close()
+        try:
+            if conexion.is_connected():
+                cursor.close()
+                conexion.close()
+        except Exception:
+            pass
 
 
 def obtener_catalogo_materiales():
@@ -147,8 +151,11 @@ def obtener_catalogo_materiales():
         st.error(f"Error al obtener catálogo: {e}")
         return pd.DataFrame()
     finally:
-        if conexion.is_connected():
-            conexion.close()
+        try:
+            if conexion.is_connected():
+                conexion.close()
+        except Exception:
+            pass
 
 
 def obtener_catalogo_pulseras():
@@ -172,38 +179,72 @@ def obtener_catalogo_pulseras():
         st.error(f"Error al obtener catálogo de pulseras: {e}")
         return pd.DataFrame()
     finally:
-        if conexion.is_connected():
-            conexion.close()
+        try:
+            if conexion.is_connected():
+                conexion.close()
+        except Exception:
+            pass
 
 
 # =====================================
-# Inicialización de estado
+# Inicialización de estado (IMPORTANTE)
 # =====================================
-def inicializar_calculadora_state():
-    DEFAULT_SELECTBOX_VALUE = " "
-    if 'hilo_calc' not in st.session_state:
-        st.session_state['hilo_calc'] = DEFAULT_SELECTBOX_VALUE
-    for i in range(5):
-        st.session_state.setdefault(f"id_{i}", DEFAULT_SELECTBOX_VALUE)
-        st.session_state.setdefault(f"cant_{i}", 0)
+def init_session_state():
+    keys_defaults = {
+        # TAB1 formulario
+        "id_mat": "",
+        "tipo_select": " ",
+        "tipo_input": "",
+        "piedra_select": " ",
+        "piedra_input": "",
+        "forma_select": " ",
+        "forma_input": "",
+        "color": "",
+        "descripcion": "",
+        "textura_sel": " ",
+        "textura_input": "",
+        "largo": "",
+        "ancho": "",
+        "costo_tira": "",
+        "cantidad": "",
+        # proveedor select uses key "Proveedor"
+        "Proveedor": " ",
+        # TAB2 calculadora
+        "hilo_calc": " ",
+        "id_0": " ",
+        "id_1": " ",
+        "id_2": " ",
+        "id_3": " ",
+        "id_4": " ",
+        "cant_0": 0,
+        "cant_1": 0,
+        "cant_2": 0,
+        "cant_3": 0,
+        "cant_4": 0,
+        # registro pulsera
+        "id_producto_pulsera_input": "",
+        "descripcion_pulsera_input": "",
+        # resultados cálculo (pueden no existir hasta calcular)
+        "costo_total": None,
+        "precio_real": None,
+        "clasificacion": None,
+        "precio_clasificado": None,
+        # DB status
+        "db_ok": False
+    }
+    for k, v in keys_defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
+
+
+init_session_state()
+
 
 # =====================================
-# INTERFAZ PRINCIPAL
+# Helper: limpiar funciones
 # =====================================
-inicializar_calculadora_state()
-st.title("Selah: Sistema de Gestión")
-
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🧾 Registro de Materiales",
-    "💰 Calculadora de Pulseras",
-    "📚 Catálogo de Materiales",
-    "📿 Catálogo de Pulseras"
-])
-
-# =========================
-# TAB 1: Registro de Materiales
-# =========================
 def limpiar_form_registro():
+    # reasignar valores para los keys del formulario
     st.session_state["id_mat"] = ""
     st.session_state["tipo_select"] = " "
     st.session_state["tipo_input"] = ""
@@ -220,9 +261,45 @@ def limpiar_form_registro():
     st.session_state["costo_tira"] = ""
     st.session_state["cantidad"] = ""
     st.session_state["Proveedor"] = " "
+    # no se eliminan claves, solo reseteamos valores existentes
+    # limpiar también posibles mensajes de cálculo
+    st.session_state.pop('costo_total', None)
+    st.session_state.pop('precio_real', None)
+    st.session_state.pop('clasificacion', None)
+    st.session_state.pop('precio_clasificado', None)
 
 
+def limpiar_calculadora_materiales():
+    st.session_state['hilo_calc'] = " "
+    for i in range(5):
+        st.session_state[f"id_{i}"] = " "
+        st.session_state[f"cant_{i}"] = 0
 
+
+def limpiar_registro_pulsera():
+    st.session_state['id_producto_pulsera_input'] = ""
+    st.session_state['descripcion_pulsera_input'] = ""
+    st.session_state.pop('costo_total', None)
+    st.session_state.pop('precio_real', None)
+    st.session_state.pop('clasificacion', None)
+    st.session_state.pop('precio_clasificado', None)
+
+
+# =====================================
+# INTERFAZ PRINCIPAL
+# =====================================
+st.title("Selah: Sistema de Gestión")
+
+tab1, tab2, tab3, tab4 = st.tabs([
+    "🧾 Registro de Materiales",
+    "💰 Calculadora de Pulseras",
+    "📚 Catálogo de Materiales",
+    "📿 Catálogo de Pulseras"
+])
+
+# =========================
+# TAB 1: Registro de Materiales
+# =========================
 with tab1:
     st.subheader("🧾 Registro de Nuevos Materiales")
 
@@ -251,8 +328,8 @@ with tab1:
             forma_input = st.text_input("Escribir Forma (opcional)", key="forma_input")
             forma_final = forma_input.strip() if forma_input.strip() else forma_seleccion
 
-            color = st.text_input("Color")
-            descripcion = st.text_input("Descripción")
+            color = st.text_input("Color", key="color")
+            descripcion = st.text_input("Descripción", key="descripcion")
 
 
         # --------- COLUMNA 2 ---------
@@ -262,32 +339,33 @@ with tab1:
             textura_sel = st.selectbox("Textura", textura_options, key="textura_sel")
             textura = st.text_input("Escribir Textura (opcional)", key="textura_input") if textura_sel == "Otro" else textura_sel
 
-            largo = st.text_input("Largo")
-            ancho = st.text_input("Ancho")
-            costo_tira = st.text_input("Costo Tira")
-            cantidad = st.text_input("Cantidad")
+            largo = st.text_input("Largo", key="largo")
+            ancho = st.text_input("Ancho", key="ancho")
+            costo_tira = st.text_input("Costo Tira", key="costo_tira")
+            cantidad = st.text_input("Cantidad", key="cantidad")
 
             proveedores = obtener_proveedores()
             opciones_prov = [" "] + [p[1] for p in proveedores]
-            nombre_prov_sel = st.selectbox("Proveedor", opciones_prov)
+            nombre_prov_sel = st.selectbox("Proveedor", opciones_prov, key="Proveedor")
             id_proveedor = {p[1]: p[0] for p in proveedores}.get(nombre_prov_sel) if nombre_prov_sel != " " else None
 
+        # botones (Registrar y Borrar)
         submitted = st.form_submit_button("Registrar Producto")
         borrar = st.form_submit_button("🧹 Borrar Todo")
+
         if borrar:
             limpiar_form_registro()
-            st.rerun()
-
+            st.experimental_rerun()
 
         # --------- VALIDACIONES ---------
         if submitted:
-            if not id_material.strip():
+            if not id_material or not str(id_material).strip():
                 st.error("El ID no puede quedar vacío.")
-            elif not tipo_final.strip():
+            elif not tipo_final or not str(tipo_final).strip():
                 st.error("El campo Tipo no puede quedar vacío.")
-            elif not piedra_final.strip():
+            elif not piedra_final or not str(piedra_final).strip():
                 st.error("El campo Piedra no puede quedar vacío.")
-            elif not forma_final.strip():
+            elif not forma_final or not str(forma_final).strip():
                 st.error("El campo Forma no puede quedar vacío.")
             elif id_proveedor is None:
                 st.error("Debes seleccionar un proveedor válido.")
@@ -300,10 +378,10 @@ with tab1:
                         st.error("El ID ya existe.")
                     else:
                         try:
-                            costo_tira_f = float(costo_tira)
-                            cantidad_i = int(cantidad)
-                            largo_f = float(largo) if largo.strip() else None
-                            ancho_f = float(ancho) if ancho.strip() else None
+                            costo_tira_f = float(costo_tira) if str(costo_tira).strip() else 0.0
+                            cantidad_i = int(cantidad) if str(cantidad).strip() else 0
+                            largo_f = float(largo) if str(largo).strip() else None
+                            ancho_f = float(ancho) if str(ancho).strip() else None
                             costo_cuenta = costo_tira_f / cantidad_i if cantidad_i else 0
 
                             sql = """
@@ -323,7 +401,7 @@ with tab1:
                             cursor.execute(sql, datos)
                             conexion.commit()
                             st.success(f"Producto registrado correctamente: {id_material}")
-
+                            # opcional: limpiar_form_registro() al registrar
                         except ValueError:
                             st.error("Verifica los campos numéricos (Costo Tira, Cantidad, Largo, Ancho).")
                         except Error as e:
@@ -331,25 +409,11 @@ with tab1:
                         finally:
                             cursor.close()
                             conexion.close()
-                            
+
+
 # =========================
 # TAB 2: Calculadora de Pulseras
 # =========================
-def limpiar_calculadora_materiales():
-    st.session_state['hilo_calc'] = " "
-    for i in range(5):
-        st.session_state[f"id_{i}"] = " "
-        st.session_state[f"cant_{i}"] = 0
-
-def limpiar_registro_pulsera():
-    st.session_state['id_producto_pulsera_input'] = ""
-    st.session_state['descripcion_pulsera_input'] = ""
-    # También borra resultados previos del cálculo
-    st.session_state.pop('costo_total', None)
-    st.session_state.pop('precio_real', None)
-    st.session_state.pop('clasificacion', None)
-    st.session_state.pop('precio_clasificado', None)
-
 with tab2:
     st.subheader("💰 Calculadora de Pulseras")
 
@@ -369,14 +433,18 @@ with tab2:
             )
             mat_id = material_mapa.get(mat_desc, " ")
         with col2:
-            cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=st.session_state[f"cant_{i}"], step=1, key=f"cant_{i}")
+            cant = st.number_input(f"Cantidad {i+1}", min_value=0, value=st.session_state.get(f"cant_{i}", 0), step=1, key=f"cant_{i}")
         material_seleccionados.append(mat_id)
         cantidades.append(cant)
-    
-    if st.button("🧹 Limpiar Selección de Materiales"):
-        limpiar_calculadora_materiales()
-        st.rerun()
 
+    # botón para limpiar selección de materiales
+    col_clear1, col_clear2 = st.columns([1, 3])
+    with col_clear1:
+        if st.button("🧹 Limpiar Selección de Materiales"):
+            limpiar_calculadora_materiales()
+            st.experimental_rerun()
+
+    # calcular precio
     if st.button("Calcular Precio"):
         costo_total_cuentas = sum(
             cantidades[i] * obtener_costo_cuenta(material_seleccionados[i])
@@ -411,16 +479,18 @@ with tab2:
     st.markdown("### Registro de Pulsera Final")
     id_producto = st.text_input("ID Producto Pulsera", key='id_producto_pulsera_input')
     descripcion_pulsera = st.text_input("Descripción Pulsera", key='descripcion_pulsera_input')
-    
-    if st.button("🧹 Borrar Formulario de Pulsera"):
-        limpiar_registro_pulsera()
-        st.rerun()
 
-    # El botón de limpiar formulario de pulsera ha sido eliminado
+    # botón para limpiar formulario de pulsera
+    colp1, colp2 = st.columns([1, 3])
+    with colp1:
+        if st.button("🧹 Borrar Formulario de Pulsera"):
+            limpiar_registro_pulsera()
+            st.experimental_rerun()
+
     if st.button("Registrar Pulsera"):
         if not id_producto or not descripcion_pulsera:
             st.error("Debes ingresar ID y descripción del producto")
-        elif 'costo_total' not in st.session_state:
+        elif 'costo_total' not in st.session_state or st.session_state.get('costo_total') is None:
             st.error("Primero debes calcular el precio")
         else:
             conexion = conectar_db()
@@ -442,6 +512,7 @@ with tab2:
                     cursor.execute(sql, datos)
                     conexion.commit()
                     st.success(f"Pulsera '{descripcion_pulsera}' registrada correctamente")
+                    # opcional: limpiar_registro_pulsera()
                 except Error as e:
                     st.error(f"No se pudo registrar la pulsera: {e}")
                 finally:
@@ -472,7 +543,4 @@ with tab4:
         if df.empty:
             st.warning("No hay pulseras registradas o ocurrió un error.")
         else:
-
             st.dataframe(df, use_container_width=True, hide_index=True)
-
-
